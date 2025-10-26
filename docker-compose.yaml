@@ -1,0 +1,38 @@
+version: '3.8'
+
+services:
+  # 1. PYTHON BACKEND SERVICE (API/SSE Stream)
+  backend:
+    # Build the Python service using the Dockerfile located in the ./backend directory
+    build:
+      context: backend
+      dockerfile: Dockerfile
+    # Map the container port 8000 to the host port 8000 (optional, but helpful for debugging)
+    ports:
+      - "8000:8000"
+    # Set environment variables for the application
+    environment:
+      - PYTHONUNBUFFERED=1 # Important for streaming and logging
+    # Set a restart policy to keep the backend running
+    restart: always
+
+  # 2. NEXT.JS FRONTEND SERVICE
+  frontend:
+    # Build the Next.js service using the Dockerfile located in the root directory
+    build:
+      context: frontend
+      dockerfile: Dockerfile
+    # Map the container port 3000 to the host port 3000
+    ports:
+      - "3000:3000"
+    # Set environment variables for Next.js build/runtime
+    environment:
+      # Pass the internal Docker network name for the backend service
+      # This is crucial for Next.js to call the Python API during server-side renders (if any)
+      # or for a Proxy setup (see notes below)
+      - NEXT_PUBLIC_API_URL=http://backend:8000
+    # Set a restart policy
+    restart: always
+    # Ensure the backend is running before starting the frontend
+    depends_on:
+      - backend

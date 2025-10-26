@@ -1,0 +1,33 @@
+{
+  "name": "expr-web",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "eslint"
+  },
+  "dependencies": {
+    "@monaco-editor/react": "^4.7.0",
+    "monaco-editor": "^0.52.2",
+    "next": "^16.0.0",
+    "react": "^19.2.0",
+    "react-dom": "^19.2.0",
+    "react-monaco-editor": "^0.59.0",
+    "react-split": "^2.0.14",
+    "tailwindcss": "^4.1.16"
+  },
+  "devDependencies": {
+    "@tailwindcss/cli": "^4.1.16",
+    "@tailwindcss/postcss": "^4.1.16",
+    "@types/node": "^20",
+    "@types/react": "^19",
+    "@types/react-dom": "^19",
+    "autoprefixer": "^10.4.21",
+    "eslint": "^9",
+    "eslint-config-next": "16.0.0",
+    "postcss": "^8.5.6",
+    "typescript": "^5"
+  }
+}

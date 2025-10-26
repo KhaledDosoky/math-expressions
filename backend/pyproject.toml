@@ -1,0 +1,18 @@
+[project]
+name = "math-expressions"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+    "antlr4-python3-runtime>=4.13.2",
+    "antlr4-tools>=0.2.2",
+    "fastapi[standard]>=0.120.0",
+    "sse-starlette>=3.0.2",
+    "uvicorn>=0.38.0",
+]
+
+[dependency-groups]
+dev = [
+    "antlr4-tools>=0.2.2",
+]

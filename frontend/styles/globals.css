@@ -1,0 +1,10 @@
+/* styles/globals.css */
+
+@import "tailwindcss";
+
+.output-flash {
+    box-shadow: 0 0 10px rgba(59, 130, 246, 0.7);
+    /* Blue shadow */
+    border-color: #3B82F6 !important;
+    /* Tailwind blue-500 equivalent */
+}
