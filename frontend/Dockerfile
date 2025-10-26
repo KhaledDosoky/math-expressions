@@ -1,33 +1,30 @@
-# 1. Install dependencies and build the app
+# Stage 1: Build
 FROM node:20-alpine AS builder
 
 WORKDIR /frontend
-COPY package.json .
-COPY package-lock.json .
+COPY package.json package-lock.json ./
 
-# Install production and development dependencies
-RUN npm install
+# Install all dependencies (including dev for build)
+RUN npm ci
 
-# Copy source code and build the application
 COPY . .
+
+# Build the Next.js app
 RUN npm run build
 
-# 2. Run the production app
+# Stage 2: Production runtime
 FROM node:20-alpine AS runner
 
 WORKDIR /frontend
+ENV NODE_ENV=production
 
-# Set production environment (important for Next.js)
-ENV NODE_ENV development
+# Copy only production dependencies
+COPY package.json package-lock.json ./
+RUN npm ci --omit=dev
 
-# Copy necessary files from the builder stage
+# Copy built files and public assets
 COPY --from=builder /frontend/.next ./.next
-COPY --from=builder /frontend/node_modules ./node_modules
-COPY --from=builder /frontend/package.json ./package.json
 COPY --from=builder /frontend/public ./public
 
-# Expose the port Next.js runs on
 EXPOSE 3000
-
-# Start the Next.js server
 CMD ["npm", "start"]
