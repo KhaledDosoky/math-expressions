@@ -1,4 +1,5 @@
 FROM koyeb/docker-compose:latest
 WORKDIR /app
 COPY . .
+RUN docker-compose build
 CMD ["docker-compose", "up", "-d"]
