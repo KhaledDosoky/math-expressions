@@ -1,3 +1,4 @@
-FROM koyeb/docker-compose
-
-COPY . /app
+FROM koyeb/docker-compose:latest
+WORKDIR /app
+COPY . .
+CMD ["docker-compose", "up", "-d"]
