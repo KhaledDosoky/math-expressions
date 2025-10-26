@@ -22,6 +22,7 @@ ENV NEXT_TELEMETRY_DISABLED 1
 
 # Build the application
 # This command generates the optimized build and the standalone folder
+ENV NODE_OPTIONS="--max-old-space-size=256"
 RUN npm run build
 
 # ------------------------------------------------------------------
