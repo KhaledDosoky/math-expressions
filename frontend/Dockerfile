@@ -1,58 +1,53 @@
 # ------------------------------------------------------------------
 # STAGE 1: Build the Next.js application (Build Environment)
 # ------------------------------------------------------------------
+# Use 'slim' for build compatibility and caching.
 FROM node:20-slim as builder
 
 # Set working directory for the build process
 WORKDIR /app
 
-# Copy package.json and package-lock.json (or yarn.lock/pnpm-lock.yaml)
-# to install dependencies
+# Copy and install dependencies (Leverage Docker caching)
 COPY package.json package-lock.json ./
-
-# Install dependencies, caching them if possible
 RUN npm install
 
 # Copy the rest of the application code
 COPY . .
 
-# Enable standalone mode for minimal size and no dependencies on node_modules at runtime
-# NOTE: Ensure 'output: "standalone"' is set in your next.config.js
+# IMPORTANT: Ensure 'output: "standalone"' is set in your next.config.js
 ENV NEXT_TELEMETRY_DISABLED 1
 
-# Build the application
-# This command generates the optimized build and the standalone folder
+# Build the application, creating the standalone directory
 ENV NODE_OPTIONS="--max-old-space-size=256"
 RUN npm run build
 
 # ------------------------------------------------------------------
-# STAGE 2: Create the minimal final image (Production Runtime)
+# STAGE 2: Create the absolute minimum final image (Production Runtime)
 # ------------------------------------------------------------------
-# Use the official Next.js recommendation: a minimal Linux base image.
-# node:20-slim is good, but often distroless or alpine are smaller.
-# Alpine is a good compromise for size and available tools.
-FROM node:20-alpine as runner
+# Use the official Distroless Node.js image for maximum size reduction.
+# The user in this image is typically 'nonroot' (UID 65532).
+FROM gcr.io/distroless/nodejs20 as runner
 
-# Set the user to 'nextjs' for security best practices
-# Next.js standalone mode is built to run as a non-root user.
-RUN addgroup -g 1001 -S nextjs && adduser -u 1001 -S nextjs -G nextjs
+# The non-root user (UID 65532) in Distroless Node.js images
+ENV UID=65532
+USER ${UID}
 
-# Set working directory in the final image
+# Set the final working directory to the expected standalone location
+# Distroless images often use a minimal user's home directory for permissions.
 WORKDIR /app
 
-# Copy the standalone folder from the builder stage.
-# The 'standalone' folder contains *only* the necessary files (no node_modules).
-COPY --from=builder --chown=nextjs:nextjs /app/.next/standalone ./
+# CRITICAL: Copy the contents of the standalone folder to the WORKDIR.
+# The standalone folder contains the server.js and all required node_modules.
+COPY --from=builder --chown=${UID}:${UID} /app/.next/standalone/ ./
 
-# Copy static files and public folder
-COPY --from=builder --chown=nextjs:nextjs /app/public ./public
-COPY --from=builder --chown=nextjs:nextjs /app/.next/static ./.next/static
+# Copy public and static files which are NOT included in 'standalone'
+COPY --from=builder --chown=${UID}:${UID} /app/public ./public
+COPY --from=builder --chown=${UID}:${UID} /app/.next/static ./.next/static
 
-# Expose the port the Next.js server will run on (default 3000)
+# Expose the port (default 3000)
 EXPOSE 3000
 
-# Switch to the non-root user
-USER nextjs
-
-# Start the Next.js server
-CMD ["node", "server.js"]
+# Start the Next.js server.
+# CRITICAL: Must use the 'exec form' (JSON array) and ensure the node binary is on the PATH.
+# The Distroless Node.js image ensures 'node' is the default ENTRYPOINT or is on the PATH.
+CMD ["server.js"]
