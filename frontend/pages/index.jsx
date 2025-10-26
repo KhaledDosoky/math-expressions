@@ -21,16 +21,17 @@ const jetbrainsMono = JetBrains_Mono({
     variable: '--font-code'
 });
 
-// --- STYLING CONSTANTS ---
+// --- STYLING CONSTANTS (Updated) ---
 const BG_DEEP = '#181818';
 const BG_PANEL = '#252526';
+const BG_HEADER = '#1C1C1D'; // NEW: Slightly darker header for separation
 const BORDER_COLOR = '#343A40';
 const RED_MUTED_BG = '#3D2C2C';
 const BG_ENV = '#303030';
 
 // --- Utility Components ---
 
-// 1. OutputLine: Renders a single line of streaming output (Memoized for performance)
+// 1. OutputLine: Renders a single line of streaming output (Memoized and styled)
 const OutputLine = React.memo(({ line, isError }) => {
     const [isNew, setIsNew] = useState(true);
 
@@ -42,7 +43,11 @@ const OutputLine = React.memo(({ line, isError }) => {
     }, []);
 
     const textColor = isError ? 'text-red-400' : 'text-gray-200';
-    const style = isError ? { backgroundColor: RED_MUTED_BG, padding: '8px' } : {};
+
+    // UPDATED: Use Tailwind classes for border/background
+    const errorClasses = isError
+        ? 'bg-red-900/30 border-l-4 border-red-500 p-2 my-1' // NEW: Added left border for strong emphasis
+        : 'py-2 mb-1'; // UPDATED: Increased vertical spacing for readability
 
     // useMemo for performance optimization of complex formatting logic
     const formattedLine = useMemo(() => {
@@ -55,7 +60,6 @@ const OutputLine = React.memo(({ line, isError }) => {
             );
         }
 
-        // Apply syntax highlighting for 'assert' and 'print'
         return line.split(" ").map((word, index) => {
             if (word === "assert") {
                 return <span key={index} className="text-red-400 font-bold">{word} </span>;
@@ -72,9 +76,8 @@ const OutputLine = React.memo(({ line, isError }) => {
                 font-mono text-sm block transition-all duration-200 whitespace-pre-wrap rounded-sm
                 ${textColor}
                 ${isNew ? 'output-line-flash' : ''} 
-                ${isError ? 'p-2 my-1' : 'py-1'}
+                ${errorClasses} 
             `}
-            style={style}
         >
             {formattedLine}
         </div>
@@ -177,7 +180,6 @@ assert x > 0
                 const event = JSON.parse(rawData);
 
                 if (event.type === 'env_snapshot') {
-                    // Success termination signal: Display env and explicitly close.
                     setFinalEnv(event.content);
                     evtSource.close();
                     setRunning(false);
@@ -193,7 +195,6 @@ assert x > 0
         };
 
         evtSource.addEventListener('close', () => {
-            // Server explicitly sent a 'close' event.
             console.log("SSE Stream received 'close' event. Terminating connection.");
             evtSource.close();
             setRunning(false);
@@ -202,11 +203,8 @@ assert x > 0
 
 
         evtSource.onerror = (e) => {
-            // FIX IMPLEMENTED HERE: Handle stream termination (readyState 2) to display env
             if (evtSource.readyState === 2) {
                 console.warn("SSE Stream closed or failed irreversibly. Assuming execution finished.");
-                // This block ensures the UI resets if the stream closes without the env_snapshot,
-                // which allows the finalEnv (if set by a preceding event) to be seen.
                 setRunning(false);
                 evtSource.close();
                 eventSourceRef.current = null;
@@ -301,10 +299,10 @@ assert x > 0
                 className={`flex flex-col h-screen text-gray-100 font-ui ${inter.variable} ${jetbrainsMono.variable}`}
                 style={{ backgroundColor: BG_DEEP }}
             >
-                {/* Header with Status Indicator */}
+                {/* Header (UPDATED Background) */}
                 <header
                     className={`flex items-center px-6 py-4 border-b shadow-md justify-between`}
-                    style={{ backgroundColor: BG_PANEL, borderColor: BORDER_COLOR }}
+                    style={{ backgroundColor: BG_HEADER, borderColor: BORDER_COLOR }}
                 >
                     <h1 className="text-2xl font-bold text-white">Expr Playground</h1>
                     <div className="text-sm font-mono flex items-center">
@@ -337,7 +335,7 @@ assert x > 0
                             >
                                 <span>Editor</span>
 
-                                {/* RUN/STOP BUTTON */}
+                                {/* RUN/STOP BUTTON (UPDATED Shortcut Styling) */}
                                 {running ? (
                                     <button
                                         onClick={stopCode}
@@ -345,7 +343,7 @@ assert x > 0
                                     >
                                         <span className="flex items-center">
                                             <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><path fill="currentColor" d="M14 19H10V5H14V19Z"></path></svg>
-                                            Stop (Ctrl+S)
+                                            Stop <span className="ml-1 text-xs opacity-75">(Ctrl+S)</span>
                                         </span>
                                     </button>
                                 ) : (
@@ -353,7 +351,7 @@ assert x > 0
                                         onClick={runCode}
                                         className={`px-4 py-1 text-sm rounded-md font-medium transition duration-150 ease-in-out shadow-md bg-blue-600 hover:bg-blue-500 text-white`}
                                     >
-                                        Run (Ctrl+S)
+                                        Run <span className="ml-1 text-xs opacity-75">(Ctrl+S)</span>
                                     </button>
                                 )}
 
@@ -397,7 +395,7 @@ assert x > 0
                                 style={{ backgroundColor: BG_DEEP }}
                             >
                                 {/* Rendering based on structured events */}
-                                {outputEvents.length > 0 || finalEnv ? ( // Check if output OR finalEnv exists
+                                {outputEvents.length > 0 || finalEnv ? (
                                     <>
                                         {outputEvents.map((event, index) => (
                                             <OutputLine
@@ -410,7 +408,6 @@ assert x > 0
                                         {finalEnv && <EnvironmentDisplay env={finalEnv} />}
                                     </>
                                 ) : (
-                                    // Empty state message
                                     <span className="text-gray-500 font-mono text-sm flex items-center">
                                         {running ? "Connecting to stream..." : "📝 Press 'Run' or Ctrl+S to execute. Results will stream here."}
                                     </span>
