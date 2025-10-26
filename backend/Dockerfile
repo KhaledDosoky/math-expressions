@@ -1,11 +1,11 @@
 # Dockerfile.backend
 
 # Use a Python base image
-FROM python:3.11-slim
+FROM python:3.11-alpine
 
 # Set environment variables
 ENV PYTHONUNBUFFERED=1
-ENV APP_HOME=/usr/src/app
+ENV APP_HOME=/backend
 WORKDIR $APP_HOME
 
 # Install uv globally first
