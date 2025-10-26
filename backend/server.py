@@ -90,3 +90,7 @@ async def stream_expr(code: str = Query(...)):
 
     # --- Return the EventSourceResponse ---
     return EventSourceResponse(event_generator())
+
+@app.get("/health")
+async def health_check():
+    return {"status": "ok"}
