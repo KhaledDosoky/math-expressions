@@ -1,37 +1,37 @@
 "use client";
-import { useState, useRef, useEffect, useCallback } from "react"; // 👈 ADD useCallback
+import { useState, useRef, useEffect, useCallback, useMemo } from "react";
 import dynamic from "next/dynamic";
 import Split from 'react-split';
-
+import React from 'react';
 import { Inter, JetBrains_Mono } from 'next/font/google';
 
 export const metadata = {
     title: 'Expr Playground',
 };
 
-// 1. Define the UI font (Inter is a great default for the system stack)
+// 1. Define the UI font
 const inter = Inter({
     subsets: ['latin'],
     variable: '--font-ui'
 });
 
-// 2. Define the Code font (JetBrains Mono)
+// 2. Define the Code font
 const jetbrainsMono = JetBrains_Mono({
     subsets: ['latin'],
     variable: '--font-code'
 });
 
-// --- STYLING CONSTANTS (Used for Inline Styles and Global CSS) ---
+// --- STYLING CONSTANTS ---
 const BG_DEEP = '#181818';
 const BG_PANEL = '#252526';
 const BORDER_COLOR = '#343A40';
 const RED_MUTED_BG = '#3D2C2C';
 const BG_ENV = '#303030';
 
-// --- Utility Components (OutputLine remains as previously fixed) ---
+// --- Utility Components ---
 
-// 1. OutputLine: Renders a single line of streaming output (print or error)
-const OutputLine = ({ line, isError }) => {
+// 1. OutputLine: Renders a single line of streaming output (Memoized for performance)
+const OutputLine = React.memo(({ line, isError }) => {
     const [isNew, setIsNew] = useState(true);
 
     useEffect(() => {
@@ -44,9 +44,19 @@ const OutputLine = ({ line, isError }) => {
     const textColor = isError ? 'text-red-400' : 'text-gray-200';
     const style = isError ? { backgroundColor: RED_MUTED_BG, padding: '8px' } : {};
 
-    const formattedLine = isError
-        ? line
-        : line.split(" ").map((word, index) => {
+    // useMemo for performance optimization of complex formatting logic
+    const formattedLine = useMemo(() => {
+        if (isError) {
+            return (
+                <span className="flex items-start">
+                    <span className="text-red-500 mr-2 font-bold">🚨</span>
+                    <span>{line}</span>
+                </span>
+            );
+        }
+
+        // Apply syntax highlighting for 'assert' and 'print'
+        return line.split(" ").map((word, index) => {
             if (word === "assert") {
                 return <span key={index} className="text-red-400 font-bold">{word} </span>;
             } else if (word === "print") {
@@ -54,6 +64,7 @@ const OutputLine = ({ line, isError }) => {
             }
             return <span key={index}>{word} </span>;
         });
+    }, [line, isError]);
 
     return (
         <div
@@ -61,23 +72,33 @@ const OutputLine = ({ line, isError }) => {
                 font-mono text-sm block transition-all duration-200 whitespace-pre-wrap rounded-sm
                 ${textColor}
                 ${isNew ? 'output-line-flash' : ''} 
-                ${isError ? 'p-2 my-1' : 'py-0.5'}
+                ${isError ? 'p-2 my-1' : 'py-1'}
             `}
             style={style}
         >
             {formattedLine}
         </div>
     );
-};
+});
+OutputLine.displayName = 'OutputLine';
 
-// 2. EnvironmentDisplay (remains the same)
+// 2. EnvironmentDisplay (with collapse/expand and type-based coloring)
 const EnvironmentDisplay = ({ env }) => {
-    // ... (rest of EnvironmentDisplay logic) ...
+    const [isCollapsed, setIsCollapsed] = useState(false);
+
     const formatValue = (value) => {
-        if (typeof value === 'number') {
-            return String(value);
+        const type = typeof value;
+
+        switch (type) {
+            case 'number':
+                return <span className="text-cyan-400 font-bold">{String(value)}</span>;
+            case 'boolean':
+                return <span className={value ? "text-green-500 font-bold" : "text-red-500 font-bold"}>{String(value)}</span>;
+            case 'string':
+                return <span className="text-yellow-400">{`"${value}"`}</span>;
+            default:
+                return <span className="text-gray-300">{String(value)}</span>;
         }
-        return String(value);
     };
 
     const keys = Object.keys(env);
@@ -88,20 +109,27 @@ const EnvironmentDisplay = ({ env }) => {
             className="mt-4 border border-blue-900/50 rounded-lg shadow-xl overflow-hidden"
             style={{ backgroundColor: BG_ENV }}
         >
-            <h4 className="px-3 py-2 text-sm font-semibold text-gray-100 bg-[#404040] border-b border-blue-900/50">
-                Final Environment Variables
+            <h4
+                className="px-3 py-2 text-sm font-semibold text-gray-100 bg-[#404040] border-b border-blue-900/50 flex justify-between items-center cursor-pointer hover:bg-[#505050] transition"
+                onClick={() => setIsCollapsed(!isCollapsed)}
+            >
+                <span>Final Environment Variables ({keys.length})</span>
+                <span>{isCollapsed ? '🔽' : '🔼'}</span>
             </h4>
-            <div className="p-3 text-sm">
-                {keys.map(key => (
-                    <div
-                        key={key}
-                        className="flex justify-between font-mono py-1 border-b border-gray-600/50 last:border-b-0"
-                    >
-                        <span className="text-blue-400 font-medium mr-4">{key}</span>
-                        <span className="text-yellow-300 text-right">{formatValue(env[key])}</span>
-                    </div>
-                ))}
-            </div>
+
+            {!isCollapsed && (
+                <div className="p-3 text-sm">
+                    {keys.map(key => (
+                        <div
+                            key={key}
+                            className="flex justify-between font-mono py-1 border-b border-gray-600/50 last:border-b-0"
+                        >
+                            <span className="text-blue-400 font-medium mr-4">{key}</span>
+                            <span className="text-right">{formatValue(env[key])}</span>
+                        </div>
+                    ))}
+                </div>
+            )}
         </div>
     );
 };
@@ -124,22 +152,24 @@ assert x > 0
     const [flashOutput, setFlashOutput] = useState(false);
 
     const outputRef = useRef(null);
+    const eventSourceRef = useRef(null);
 
-    // 👇 1. WRAP runCode in useCallback to stabilize the function
-    const runCode = useCallback(() => {
-        // These three lines already clear the output and reset state!
+    const clearOutput = useCallback(() => {
         setOutputEvents([]);
         setFinalEnv(null);
+    }, []);
+
+    const runCode = useCallback(() => {
+        clearOutput();
         setRunning(true);
 
-        // use the environment variable for backend URL: NEXT_PUBLIC_API_URL
         const backendUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
 
         const evtSource = new EventSource(
             `${backendUrl}/stream?code=${encodeURIComponent(code)}`
         );
+        eventSourceRef.current = evtSource;
 
-        // --- EventSource handlers (onmessage, addEventListener, onerror) remain the same ---
         evtSource.onmessage = (e) => {
             const rawData = e.data.replace(/^data:\s*/, '');
 
@@ -147,11 +177,11 @@ assert x > 0
                 const event = JSON.parse(rawData);
 
                 if (event.type === 'env_snapshot') {
+                    // Success termination signal: Display env and explicitly close.
                     setFinalEnv(event.content);
                     evtSource.close();
                     setRunning(false);
-                } else if (event.type === 'stream_start') {
-                    setOutputEvents((prev) => [...prev, event]);
+                    eventSourceRef.current = null;
                 } else {
                     setOutputEvents((prev) => [...prev, event]);
                 }
@@ -163,23 +193,45 @@ assert x > 0
         };
 
         evtSource.addEventListener('close', () => {
+            // Server explicitly sent a 'close' event.
             console.log("SSE Stream received 'close' event. Terminating connection.");
             evtSource.close();
             setRunning(false);
+            eventSourceRef.current = null;
         });
 
 
         evtSource.onerror = (e) => {
+            // FIX IMPLEMENTED HERE: Handle stream termination (readyState 2) to display env
             if (evtSource.readyState === 2) {
-                console.warn("SSE Stream closed or failed irreversibly.");
+                console.warn("SSE Stream closed or failed irreversibly. Assuming execution finished.");
+                // This block ensures the UI resets if the stream closes without the env_snapshot,
+                // which allows the finalEnv (if set by a preceding event) to be seen.
                 setRunning(false);
+                evtSource.close();
+                eventSourceRef.current = null;
             } else if (evtSource.readyState === 0) {
                 console.warn("SSE Connection warning: Retrying or initial connection issue.");
             } else {
                 console.error("Unresolved SSE Error:", e);
+                setRunning(false);
+                evtSource.close();
+                eventSourceRef.current = null;
             }
         };
-    }, [code]); // 👈 Dependency on 'code' because it's used in the query string
+
+        return () => evtSource.close();
+    }, [code, clearOutput]);
+
+    const stopCode = useCallback(() => {
+        if (eventSourceRef.current) {
+            console.log("Stopping SSE stream manually.");
+            eventSourceRef.current.close();
+            eventSourceRef.current = null;
+        }
+        setRunning(false);
+        setOutputEvents(prev => [...prev, { type: 'client_warning', content: 'Execution manually stopped.' }]);
+    }, []);
 
 
     useEffect(() => {
@@ -198,19 +250,19 @@ assert x > 0
         }
     }, [outputEvents]);
 
-    // 👇 2. UPDATED EFFECT: Handles Ctrl + S shortcut with stable dependencies
+    // Handles Ctrl + S shortcut
     useEffect(() => {
         const handleSaveShortcut = (event) => {
             const isCtrlOrCmd = event.ctrlKey || event.metaKey;
             const isSKey = event.key === 's' || event.key === 'S';
 
             if (isCtrlOrCmd && isSKey) {
-                // Prevent the default browser save dialog
                 event.preventDefault();
 
-                // Call the runCode function, which is now stable and clears the output
                 if (!running) {
                     runCode();
+                } else {
+                    stopCode();
                 }
             }
         };
@@ -220,14 +272,11 @@ assert x > 0
         return () => {
             document.removeEventListener('keydown', handleSaveShortcut);
         };
-    }, [running, runCode]); // 👈 Dependencies include 'running' and 'runCode'
+    }, [running, runCode, stopCode]);
 
     return (
         <>
-            {/* Global Styles for Fonts, Splitter, and Background */}
             <style jsx global>{`
-                /* ... (existing styles) ... */
-                /* NEW: Individual Line Flash Effect */
                 .output-line-flash {
                     background-color: rgba(59, 130, 246, 0.3) !important;
                     border-left: 3px solid #60A5FA;
@@ -235,10 +284,7 @@ assert x > 0
                     transition: background-color 0.2s ease-out, border-left-color 0.2s ease-out;
                 }
                 
-                .split-pane-wrapper {
-                    display: flex;
-                    height: 100%;
-                }
+                .split-pane-wrapper { display: flex; height: 100%; }
                 .gutter {
                     background-color: ${BG_DEEP}; 
                     cursor: col-resize;
@@ -246,12 +292,8 @@ assert x > 0
                     border-left: 1px solid ${BORDER_COLOR};
                     border-right: 1px solid ${BORDER_COLOR}; 
                 }
-                .gutter:hover {
-                    background-color: ${BORDER_COLOR};
-                }
-                .gutter.gutter-horizontal {
-                    width: 10px;
-                }
+                .gutter:hover { background-color: ${BORDER_COLOR}; }
+                .gutter.gutter-horizontal { width: 10px; }
             `}</style>
 
 
@@ -259,12 +301,19 @@ assert x > 0
                 className={`flex flex-col h-screen text-gray-100 font-ui ${inter.variable} ${jetbrainsMono.variable}`}
                 style={{ backgroundColor: BG_DEEP }}
             >
-                {/* Header */}
+                {/* Header with Status Indicator */}
                 <header
-                    className={`flex items-center px-6 py-4 border-b shadow-md`}
+                    className={`flex items-center px-6 py-4 border-b shadow-md justify-between`}
                     style={{ backgroundColor: BG_PANEL, borderColor: BORDER_COLOR }}
                 >
                     <h1 className="text-2xl font-bold text-white">Expr Playground</h1>
+                    <div className="text-sm font-mono flex items-center">
+                        <span className="text-gray-400 mr-2">Status:</span>
+                        <span className={`h-3 w-3 rounded-full mr-2 ${running ? 'bg-yellow-500 animate-pulse' : 'bg-green-500'}`}></span>
+                        <span className={running ? 'text-yellow-500' : 'text-green-500'}>
+                            {running ? 'RUNNING' : 'IDLE'}
+                        </span>
+                    </div>
                 </header>
 
                 {/* Main Content using Split */}
@@ -281,32 +330,32 @@ assert x > 0
                             className={`flex flex-col rounded-lg shadow-xl border overflow-hidden`}
                             style={{ backgroundColor: BG_PANEL, borderColor: BORDER_COLOR }}
                         >
-                            {/* Editor Header with Run Button */}
+                            {/* Editor Header with Run/Stop Button */}
                             <div
                                 className={`px-4 py-2 border-b text-gray-300 font-semibold flex justify-between items-center`}
                                 style={{ borderColor: BORDER_COLOR }}
                             >
                                 <span>Editor</span>
 
-                                {/* RUN BUTTON */}
-                                <button
-                                    onClick={runCode}
-                                    disabled={running}
-                                    className={`px-4 py-1 text-sm rounded-md font-medium transition duration-150 ease-in-out shadow-md
-                                    ${running ? "bg-gray-600 cursor-not-allowed text-gray-400" : "bg-blue-600 hover:bg-blue-500 text-white"}`}
-                                >
-                                    {running ? (
+                                {/* RUN/STOP BUTTON */}
+                                {running ? (
+                                    <button
+                                        onClick={stopCode}
+                                        className={`px-4 py-1 text-sm rounded-md font-medium transition duration-150 ease-in-out shadow-md bg-red-600 hover:bg-red-500 text-white`}
+                                    >
                                         <span className="flex items-center">
-                                            <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                                                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                                                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                                            </svg>
-                                            Running...
+                                            <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><path fill="currentColor" d="M14 19H10V5H14V19Z"></path></svg>
+                                            Stop (Ctrl+S)
                                         </span>
-                                    ) : (
-                                        "Run"
-                                    )}
-                                </button>
+                                    </button>
+                                ) : (
+                                    <button
+                                        onClick={runCode}
+                                        className={`px-4 py-1 text-sm rounded-md font-medium transition duration-150 ease-in-out shadow-md bg-blue-600 hover:bg-blue-500 text-white`}
+                                    >
+                                        Run (Ctrl+S)
+                                    </button>
+                                )}
 
                             </div>
                             <div className="flex-1">
@@ -323,13 +372,24 @@ assert x > 0
                                 className={`px-4 py-2 border-b text-gray-300 font-semibold flex justify-between items-center`}
                                 style={{ borderColor: BORDER_COLOR }}
                             >
-                                <span>Console Output</span>
-                                {running && (
-                                    <span className="text-sm text-yellow-400 flex items-center">
-                                        <span className="h-2 w-2 rounded-full bg-yellow-400 mr-2 animate-pulse"></span>
-                                        Streaming...
-                                    </span>
-                                )}
+                                <span className="flex items-center">
+                                    Console Output
+                                    {running && (
+                                        <span className="text-sm text-yellow-400 flex items-center ml-4">
+                                            <span className="h-2 w-2 rounded-full bg-yellow-400 mr-2 animate-pulse"></span>
+                                            Streaming...
+                                        </span>
+                                    )}
+                                </span>
+
+                                {/* Clear Console Button */}
+                                <button
+                                    onClick={clearOutput}
+                                    className={`px-3 py-0.5 text-xs rounded font-medium text-gray-300 hover:bg-[#505050] transition`}
+                                    title="Clear Console Output"
+                                >
+                                    Clear 🗑️
+                                </button>
                             </div>
                             <div
                                 ref={outputRef}
@@ -337,22 +397,26 @@ assert x > 0
                                 style={{ backgroundColor: BG_DEEP }}
                             >
                                 {/* Rendering based on structured events */}
-                                {outputEvents.length > 0 ? (
-                                    outputEvents.map((event, index) => (
-                                        <OutputLine
-                                            key={index}
-                                            line={event.content}
-                                            isError={event.type.includes('error')}
-                                        />
-                                    ))
+                                {outputEvents.length > 0 || finalEnv ? ( // Check if output OR finalEnv exists
+                                    <>
+                                        {outputEvents.map((event, index) => (
+                                            <OutputLine
+                                                key={index}
+                                                line={event.content}
+                                                isError={event.type.includes('error') || event.type.includes('client_error')}
+                                            />
+                                        ))}
+                                        {/* Dedicated Display for Final Environment */}
+                                        {finalEnv && <EnvironmentDisplay env={finalEnv} />}
+                                    </>
                                 ) : (
-                                    <span className="text-gray-500 font-mono text-sm">
-                                        {running ? "Connecting to stream..." : "Press 'Run' or Ctrl+S to see output..."}
+                                    // Empty state message
+                                    <span className="text-gray-500 font-mono text-sm flex items-center">
+                                        {running ? "Connecting to stream..." : "📝 Press 'Run' or Ctrl+S to execute. Results will stream here."}
                                     </span>
                                 )}
 
-                                {/* Dedicated Display for Final Environment */}
-                                {finalEnv && <EnvironmentDisplay env={finalEnv} />}
+
                             </div>
                         </div>
                     </Split>
