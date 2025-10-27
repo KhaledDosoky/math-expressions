@@ -22,15 +22,12 @@ const BG_DEEP = '#121212';
 const BG_HEADER = '#181818';
 const BG_PANEL = '#252526';
 const BORDER_COLOR = '#343A40';
-// const BG_ENV = '#303030'; // Unused
 const PRIMARY_ACCENT = '#9370DB';
-// const ERROR_COLOR = '#EF4444'; // Unused
 const OUTPUT_FLASH_COLOR = '#7B68EE';
 
 
-// --- Utility Components ---
+// --- Utility Components (Unchanged) ---
 
-// OutputLine: Already Memoized - GOOD
 const OutputLine = React.memo(({ line, isError }) => {
     const [isNew, setIsNew] = useState(true);
 
@@ -83,8 +80,6 @@ const OutputLine = React.memo(({ line, isError }) => {
 });
 OutputLine.displayName = 'OutputLine';
 
-
-// VariableEntry: Recursive Component Wrapped in Memo
 const VariableEntryComponent = ({ name, value, isRoot = false, depth = 0 }) => {
     const type = typeof value;
     const isExpandable = type === 'object' && value !== null && !Array.isArray(value) && Object.keys(value).length > 0;
@@ -190,7 +185,6 @@ const VariableEntry = React.memo(VariableEntryComponent);
 VariableEntry.displayName = 'VariableEntry';
 
 
-// EnvironmentDisplay: MAIN DISPLAY WRAPPED IN MEMO - GOOD
 const EnvironmentDisplayComponent = ({ env }) => {
     const keys = Object.keys(env);
     if (keys.length === 0) return (
@@ -370,23 +364,21 @@ assert x > 0
                     transition: background-color 0.2s, border-color 0.2s; 
                 }
 
-                /* Update the Horizontal Gutter (Main Split) - Now uses standard col-resize cursor */
+                /* Horizontal Gutter (Main Split) - Desktop */
                 .gutter.gutter-horizontal { 
                     width: 10px;
-                    /* ✅ FIX: Use 'col-resize' for the standard horizontal resizing cursor */
                     cursor: col-resize !important; 
                     border-left: 1px solid transparent; 
                     border-right: 1px solid transparent; 
                 }
                 .gutter.gutter-horizontal:hover { 
-                    /* ✅ FIX: Ensure the hover state also uses the resizing cursor */
                     cursor: col-resize !important;
                     background-color: ${PRIMARY_ACCENT}33; 
                     border-left: 1px solid ${PRIMARY_ACCENT};
                     border-right: 1px solid ${PRIMARY_ACCENT};
                 }
 
-                /* Update the Vertical Gutter (Nested Split) - Uses standard row-resize cursor */
+                /* Vertical Gutter (Nested Split) */
                 .gutter.gutter-vertical { 
                     height: 10px;
                     cursor: row-resize; 
@@ -398,6 +390,54 @@ assert x > 0
                     cursor: row-resize; 
                     border-top: 1px solid ${PRIMARY_ACCENT};
                     border-bottom: 1px solid ${PRIMARY_ACCENT}; 
+                }
+
+                /* ======================================= */
+                /* MOBILE RESPONSIVENESS STYLES      */
+                /* ======================================= */
+                @media (max-width: 768px) {
+                    
+                    /* 1. Collapse the main horizontal split to a vertical stack */
+                    .split-pane-wrapper {
+                        flex-direction: column !important; /* Forces stacking */
+                        gap: 16px; /* Add some space between the two main panels */
+                        /* The height will be controlled by the panels themselves */
+                    }
+
+                    /* 2. Hide all gutters and remove resizing functionality */
+                    .gutter {
+                        display: none !important; 
+                        width: 0 !important;
+                        height: 0 !important;
+                        min-height: 0 !important;
+                        min-width: 0 !important;
+                        cursor: default !important;
+                    }
+                    
+                    /* 3. Ensure panels use full width and height is managed by content/flex-grow */
+                    .split-pane-wrapper > div {
+                         /* This class is applied to the direct children of Split, 
+                            which are the Editor and the nested Split panel */
+                        width: 100% !important; 
+                        min-width: 100%;
+                        /* The Editor (first child) should shrink a bit to fit.
+                           The inner split (second child) should take up some space.
+                           We manually set a height here, or rely on content/flex-grow
+                        */
+                    }
+
+                    /* Make the Editor panel take up a good portion of the screen */
+                    .split-pane-wrapper > div:first-child {
+                        height: 50vh !important; /* Set a specific height for the Editor (50% of viewport height) */
+                        min-height: 300px;
+                    }
+                    
+                    /* Make the Console/Variables panel take the rest of the height */
+                    .split-pane-wrapper > div:last-child {
+                        height: auto !important;
+                        flex-grow: 1;
+                        overflow: hidden; /* Prevent inner splits from causing external scroll */
+                    }
                 }
             `}</style>
 
@@ -422,13 +462,13 @@ assert x > 0
                                 <path d="M19 16L29 24L19 32V16Z" fill={PRIMARY_ACCENT} />
                             </svg>
                         </div>
-                        <h1 className="text-3xl font-extrabold tracking-tight text-white font-ui drop-shadow-lg">
+                        <h1 className="text-3xl font-extrabold tracking-tight text-white font-ui drop-shadow-lg text-xl sm:text-3xl"> {/* Reduced size on mobile */}
                             Expr<span style={{ color: PRIMARY_ACCENT }}>CLI</span> Playground
                         </h1>
                     </div>
 
                     <div className="text-sm font-code flex items-center">
-                        <span className="text-gray-400 mr-2">Status:</span>
+                        <span className="text-gray-400 mr-2 hidden sm:inline">Status:</span>
                         <span className={`h-3 w-3 rounded-full mr-2 ${running ? 'bg-yellow-500 animate-pulse' : 'bg-green-500'}`}></span>
                         <span className={running ? 'text-yellow-500' : 'text-green-500'}>
                             {running ? 'RUNNING' : 'IDLE'}
@@ -438,15 +478,16 @@ assert x > 0
                 {/* === END Header === */}
 
                 {/* Main Content using Split (Horizontal) */}
+                {/* Note: The 'split-pane-wrapper' class is targeted by the mobile CSS to force vertical stacking */}
                 <div className="flex-1 p-4 overflow-hidden">
                     <Split
                         className="split-pane-wrapper gap-4"
                         initialSizes={[50, 50]}
-                        minSize={300}
+                        minSize={100} // Reduced minimum size for mobile flexibility
                         gutterSize={10}
-                        direction="horizontal" // Main split
+                        direction="horizontal" // Default direction (desktop)
                     >
-                        {/* 1. Editor Panel (Left) */}
+                        {/* 1. Editor Panel (Left/Top) */}
                         <div
                             className={`flex flex-col rounded-lg shadow-xl border overflow-hidden`}
                             style={{ backgroundColor: BG_PANEL, borderColor: BORDER_COLOR }}
@@ -458,9 +499,9 @@ assert x > 0
                             >
                                 <span>Editor</span>
 
-                                {/* Font Slider Input */}
-                                <div className="ml-6 flex items-center text-sm font-normal text-gray-400">
-                                    <label htmlFor="font-slider" className="mr-2 hidden sm:inline">
+                                {/* Font Slider Input - Hidden on small screens (sm:inline-flex) */}
+                                <div className="ml-6 hidden sm:inline-flex items-center text-sm font-normal text-gray-400">
+                                    <label htmlFor="font-slider" className="mr-2">
                                         Font Size:
                                     </label>
                                     <input
@@ -483,7 +524,7 @@ assert x > 0
                                     >
                                         <span className="flex items-center">
                                             <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><path fill="currentColor" d="M14 19H10V5H14V19Z"></path></svg>
-                                            Stop <span className="ml-1 text-xs opacity-75">(Ctrl+S)</span>
+                                            Stop <span className="ml-1 text-xs opacity-75 hidden sm:inline">(Ctrl+S)</span>
                                         </span>
                                     </button>
                                 ) : (
@@ -492,7 +533,7 @@ assert x > 0
                                         className={`px-4 py-1 text-sm rounded-md font-medium transition duration-150 ease-in-out shadow-lg text-white hover:opacity-90`}
                                         style={{ backgroundColor: PRIMARY_ACCENT, boxShadow: `0 0 10px ${PRIMARY_ACCENT}60` }}
                                     >
-                                        Run <span className="ml-1 text-xs opacity-75">(Ctrl+S)</span>
+                                        Run <span className="ml-1 text-xs opacity-75 hidden sm:inline">(Ctrl+S)</span>
                                     </button>
                                 )}
                             </div>
@@ -504,7 +545,7 @@ assert x > 0
                         {/* 2. Right Side Split (Vertical Split for Console and Environment) */}
                         <Split
                             direction="vertical" // Nested vertical split 
-                            sizes={[60, 40]} // 60% for console, 40% for variables
+                            sizes={[60, 40]}
                             minSize={100}
                             gutterSize={10}
                             className="flex flex-col h-full"
@@ -582,17 +623,18 @@ assert x > 0
 
                 {/* Status Bar */}
                 <footer
-                    className={`p-1 text-xs text-gray-500 border-t flex justify-center space-x-4 font-code`}
+                    className={`p-1 text-xs text-gray-500 border-t flex justify-center space-x-2 sm:space-x-4 font-code`}
                     style={{ backgroundColor: BG_DEEP, borderColor: BORDER_COLOR }}
                 >
-                    <span className="text-gray-400">Expr Playground | Interpreter v1.0</span>
-                    <span className="text-gray-500">|</span>
+                    <span className="text-gray-400 hidden sm:inline">Expr Playground | Interpreter v1.0</span>
+                    <span className="text-gray-400 sm:hidden">Expr v1.0</span>
+                    <span className="text-gray-500 hidden sm:inline">|</span>
                     <span>
-                        Created by <a href="https://khaled.boo/" target="_blank" rel="noopener noreferrer" className="text-indigo-400 hover:text-indigo-300">Khaled Dosoky</a>
+                        <a href="https://khaled.boo/" target="_blank" rel="noopener noreferrer" className="text-indigo-400 hover:text-indigo-300">Khaled Dosoky</a>
                     </span>
                     <span className="text-gray-500">|</span>
-                    <span>
-                        <a href="https://github.com/KhaledDosoky/math-expressions" target="_blank" rel="noopener noreferrer" className="text-indigo-400 hover:text-indigo-300">GitHub Repo 🔗</a>
+                    <span className="truncate"> {/* Added truncate for long repo URL on small screens */}
+                        <a href="https://github.com/KhaledDosoky/math-expressions" target="_blank" rel="noopener noreferrer" className="text-indigo-400 hover:text-indigo-300">GitHub 🔗</a>
                     </span>
                 </footer>
             </div>
