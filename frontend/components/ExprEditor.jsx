@@ -1,15 +1,30 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import Editor, { useMonaco } from "@monaco-editor/react";
 import { registerExprLanguage } from "../lib/exprLanguage";
 
-export default function ExprEditor({ code, onChange }) {
+export default function ExprEditor({ code, onChange, fontSize }) {
     const monaco = useMonaco();
+
+    const editorRef = useRef(null);
+
+    // Function to store the editor instance
+    function handleEditorDidMount(editor, monaco) {
+        editorRef.current = editor;
+    }
 
     useEffect(() => {
         if (monaco) registerExprLanguage(monaco);
     }, [monaco]);
+
+    useEffect(() => {
+        if (editorRef.current) {
+            editorRef.current.updateOptions({
+                fontSize: fontSize // <-- This line updates Monaco
+            });
+        }
+    }, [fontSize]); // Rerun effect when fontSize changes
 
     return (
         <Editor
@@ -20,10 +35,10 @@ export default function ExprEditor({ code, onChange }) {
             theme="vs-dark"
             options={{
                 automaticLayout: true,
-                fontSize: 14,
+                fontSize: fontSize,
                 minimap: { enabled: false },
                 scrollBeyondLastLine: false,
-                renderWhitespace: "all",
+                renderWhitespace: "none",
             }}
         />
     );

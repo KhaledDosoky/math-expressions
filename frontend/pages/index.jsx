@@ -5,10 +5,6 @@ import Split from 'react-split';
 import React from 'react';
 import { Inter, JetBrains_Mono } from 'next/font/google';
 
-export const metadata = {
-    title: 'Expr Playground',
-};
-
 // 1. Define the UI font
 const inter = Inter({
     subsets: ['latin'],
@@ -73,7 +69,7 @@ const OutputLine = React.memo(({ line, isError }) => {
     return (
         <div
             className={`
-                font-mono text-sm block transition-all duration-200 whitespace-pre-wrap rounded-sm
+                font-mono text-lg block transition-all duration-200 whitespace-pre-wrap rounded-sm
                 ${textColor}
                 ${isNew ? 'output-line-flash' : ''} 
                 ${errorClasses} 
@@ -153,6 +149,7 @@ assert x > 0
     const [finalEnv, setFinalEnv] = useState(null);
     const [running, setRunning] = useState(false);
     const [flashOutput, setFlashOutput] = useState(false);
+    const [editorFontSize, setEditorFontSize] = useState(24);
 
     const outputRef = useRef(null);
     const eventSourceRef = useRef(null);
@@ -335,6 +332,24 @@ assert x > 0
                             >
                                 <span>Editor</span>
 
+                                {/* === START: New Slider Input === */}
+                                <div className="ml-6 flex items-center text-sm font-normal text-gray-400">
+                                    <label htmlFor="font-slider" className="mr-2 hidden sm:inline">
+                                        Font Size:
+                                    </label>
+                                    <input
+                                        id="font-slider"
+                                        type="range"
+                                        min="10"
+                                        max="24"
+                                        value={editorFontSize}
+                                        onChange={(e) => setEditorFontSize(parseInt(e.target.value))}
+                                        className="w-24 h-2 bg-gray-700 rounded-lg appearance-none cursor-pointer range-lg"
+                                    />
+                                    <span className="ml-2 w-5 text-right font-mono text-gray-300">{editorFontSize}</span>
+                                </div>
+                                {/* === END: New Slider Input === */}
+
                                 {/* RUN/STOP BUTTON (UPDATED Shortcut Styling) */}
                                 {running ? (
                                     <button
@@ -357,7 +372,7 @@ assert x > 0
 
                             </div>
                             <div className="flex-1">
-                                <ExprEditor code={code} onChange={setCode} />
+                                <ExprEditor code={code} onChange={setCode} fontSize={editorFontSize} />
                             </div>
                         </div>
 
