@@ -235,8 +235,6 @@ assert x > 0
     const [running, setRunning] = useState(false);
     const [flashOutput, setFlashOutput] = useState(false);
     const [editorFontSize, setEditorFontSize] = useState(18);
-    // 💡 OPTIMIZATION 1: New state for controlling the main split size
-    const [splitSizes, setSplitSizes] = useState([50, 50]);
 
     const outputRef = useRef(null);
     const eventSourceRef = useRef(null);
@@ -244,11 +242,6 @@ assert x > 0
     const clearOutput = useCallback(() => {
         setOutputEvents([]);
         setFinalEnv(null);
-    }, []);
-
-    // 💡 OPTIMIZATION 2: New handler to only update the state when drag ends
-    const handleHorizontalDragEnd = useCallback((sizes) => {
-        setSplitSizes(sizes);
     }, []);
 
     const runCode = useCallback(() => {
@@ -374,36 +367,35 @@ assert x > 0
                 /* Update the base .gutter styles */
                 .gutter {
                     background-color: ${BG_DEEP}; 
-                    transition: background-color 0.2s, border-color 0.2s; /* Add border-color transition */
+                    transition: background-color 0.2s, border-color 0.2s; 
                 }
 
-                /* Update the Horizontal Gutter (Main Split) */
+                /* Update the Horizontal Gutter (Main Split) - Now uses standard col-resize cursor */
                 .gutter.gutter-horizontal { 
                     width: 10px;
-                    cursor: grab !important; 
-                    /* Add transparent borders to reserve space and fix flicker */
+                    /* ✅ FIX: Use 'col-resize' for the standard horizontal resizing cursor */
+                    cursor: col-resize !important; 
                     border-left: 1px solid transparent; 
                     border-right: 1px solid transparent; 
                 }
                 .gutter.gutter-horizontal:hover { 
-                    cursor: grabbing !important;
+                    /* ✅ FIX: Ensure the hover state also uses the resizing cursor */
+                    cursor: col-resize !important;
                     background-color: ${PRIMARY_ACCENT}33; 
-                    /* Change transparent borders to the accent color */
                     border-left: 1px solid ${PRIMARY_ACCENT};
                     border-right: 1px solid ${PRIMARY_ACCENT};
                 }
 
-                /* Update the Vertical Gutter (Nested Split) */
+                /* Update the Vertical Gutter (Nested Split) - Uses standard row-resize cursor */
                 .gutter.gutter-vertical { 
                     height: 10px;
                     cursor: row-resize; 
-                    /* Add transparent borders to reserve space and fix flicker */
                     border-top: 1px solid transparent; 
                     border-bottom: 1px solid transparent;
                 }
                 .gutter.gutter-vertical:hover {
                     background-color: ${PRIMARY_ACCENT}33;
-                    /* Change transparent borders to the accent color */
+                    cursor: row-resize; 
                     border-top: 1px solid ${PRIMARY_ACCENT};
                     border-bottom: 1px solid ${PRIMARY_ACCENT}; 
                 }
@@ -449,8 +441,7 @@ assert x > 0
                 <div className="flex-1 p-4 overflow-hidden">
                     <Split
                         className="split-pane-wrapper gap-4"
-                        sizes={splitSizes} // 💡 Use the state here
-                        onDragEnd={handleHorizontalDragEnd} // 💡 Only update state when drag is complete
+                        initialSizes={[50, 50]}
                         minSize={300}
                         gutterSize={10}
                         direction="horizontal" // Main split
@@ -511,9 +502,8 @@ assert x > 0
                         </div>
 
                         {/* 2. Right Side Split (Vertical Split for Console and Environment) */}
-                        {/* Note: This nested split can still update on drag, but its components are smaller/less complex than the Editor. */}
                         <Split
-                            direction="vertical" // Nested vertical split
+                            direction="vertical" // Nested vertical split 
                             sizes={[60, 40]} // 60% for console, 40% for variables
                             minSize={100}
                             gutterSize={10}
@@ -592,10 +582,18 @@ assert x > 0
 
                 {/* Status Bar */}
                 <footer
-                    className={`p-1 text-xs text-gray-500 border-t text-center font-code`}
+                    className={`p-1 text-xs text-gray-500 border-t flex justify-center space-x-4 font-code`}
                     style={{ backgroundColor: BG_DEEP, borderColor: BORDER_COLOR }}
                 >
-                    Expr Playground | Interpreter v1.0
+                    <span className="text-gray-400">Expr Playground | Interpreter v1.0</span>
+                    <span className="text-gray-500">|</span>
+                    <span>
+                        Created by <a href="https://khaled.boo/" target="_blank" rel="noopener noreferrer" className="text-indigo-400 hover:text-indigo-300">Khaled Dosoky</a>
+                    </span>
+                    <span className="text-gray-500">|</span>
+                    <span>
+                        <a href="https://github.com/KhaledDosoky/math-expressions" target="_blank" rel="noopener noreferrer" className="text-indigo-400 hover:text-indigo-300">GitHub Repo 🔗</a>
+                    </span>
                 </footer>
             </div>
         </>
