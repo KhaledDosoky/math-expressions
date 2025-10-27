@@ -163,10 +163,8 @@ assert x > 0
         clearOutput();
         setRunning(true);
 
-        const backendUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
-
         const evtSource = new EventSource(
-            `${backendUrl}/stream?code=${encodeURIComponent(code)}`
+            `/api/stream?code=${encodeURIComponent(code)}`
         );
         eventSourceRef.current = evtSource;
 
