@@ -17,13 +17,15 @@ const jetbrainsMono = JetBrains_Mono({
     variable: '--font-code'
 });
 
-// --- STYLING CONSTANTS (Updated) ---
-const BG_DEEP = '#181818';
+// --- STYLING CONSTANTS (REVISED FOR SOFTER LOOK) ---
+const BG_DEEP = '#121212'; // True Black for deep background
+const BG_HEADER = '#181818'; // Slightly lighter for header
 const BG_PANEL = '#252526';
-const BG_HEADER = '#1C1C1D'; // NEW: Slightly darker header for separation
 const BORDER_COLOR = '#343A40';
-const RED_MUTED_BG = '#3D2C2C';
 const BG_ENV = '#303030';
+const PRIMARY_ACCENT = '#9370DB'; // Muted Indigo/Purple for eye comfort
+const ERROR_COLOR = '#EF4444';
+const OUTPUT_FLASH_COLOR = '#7B68EE'; // Slightly darker blue for flash effect
 
 // --- Utility Components ---
 
@@ -40,12 +42,10 @@ const OutputLine = React.memo(({ line, isError }) => {
 
     const textColor = isError ? 'text-red-400' : 'text-gray-200';
 
-    // UPDATED: Use Tailwind classes for border/background
     const errorClasses = isError
-        ? 'bg-red-900/30 border-l-4 border-red-500 p-2 my-1' // NEW: Added left border for strong emphasis
-        : 'py-2 mb-1'; // UPDATED: Increased vertical spacing for readability
+        ? 'bg-red-900/30 p-2 my-1 border-l-4 border-red-500'
+        : 'py-2 mb-1';
 
-    // useMemo for performance optimization of complex formatting logic
     const formattedLine = useMemo(() => {
         if (isError) {
             return (
@@ -58,7 +58,7 @@ const OutputLine = React.memo(({ line, isError }) => {
 
         return line.split(" ").map((word, index) => {
             if (word === "assert") {
-                return <span key={index} className="text-red-400 font-bold">{word} </span>;
+                return <span key={index} className="text-yellow-400 font-bold">{word} </span>;
             } else if (word === "print") {
                 return <span key={index} className="text-green-400 font-bold">{word} </span>;
             }
@@ -117,7 +117,7 @@ const EnvironmentDisplay = ({ env }) => {
             </h4>
 
             {!isCollapsed && (
-                <div className="p-3 text-sm">
+                <div className="p-3 text-sm max-h-60 overflow-y-auto">
                     {keys.map(key => (
                         <div
                             key={key}
@@ -149,7 +149,7 @@ assert x > 0
     const [finalEnv, setFinalEnv] = useState(null);
     const [running, setRunning] = useState(false);
     const [flashOutput, setFlashOutput] = useState(false);
-    const [editorFontSize, setEditorFontSize] = useState(24);
+    const [editorFontSize, setEditorFontSize] = useState(18);
 
     const outputRef = useRef(null);
     const eventSourceRef = useRef(null);
@@ -271,8 +271,9 @@ assert x > 0
         <>
             <style jsx global>{`
                 .output-line-flash {
-                    background-color: rgba(59, 130, 246, 0.3) !important;
-                    border-left: 3px solid #60A5FA;
+                    // Flash with the new primary accent color
+                    background-color: ${OUTPUT_FLASH_COLOR}33 !important; 
+                    border-left: 3px solid ${OUTPUT_FLASH_COLOR};
                     padding-left: 5px; 
                     transition: background-color 0.2s ease-out, border-left-color 0.2s ease-out;
                 }
@@ -285,7 +286,12 @@ assert x > 0
                     border-left: 1px solid ${BORDER_COLOR};
                     border-right: 1px solid ${BORDER_COLOR}; 
                 }
-                .gutter:hover { background-color: ${BORDER_COLOR}; }
+                .gutter:hover { 
+                    // Muted flash on hover
+                    background-color: ${PRIMARY_ACCENT}33; 
+                    border-left: 1px solid ${PRIMARY_ACCENT};
+                    border-right: 1px solid ${PRIMARY_ACCENT};
+                }
                 .gutter.gutter-horizontal { width: 10px; }
             `}</style>
 
@@ -294,12 +300,24 @@ assert x > 0
                 className={`flex flex-col h-screen text-gray-100 font-ui ${inter.variable} ${jetbrainsMono.variable}`}
                 style={{ backgroundColor: BG_DEEP }}
             >
-                {/* Header (UPDATED Background) */}
+                {/* Header (Muted Accent) */}
                 <header
-                    className={`flex items-center px-6 py-4 border-b shadow-md justify-between`}
+                    className={`flex items-center px-6 py-4 border-b shadow-2xl justify-between`}
                     style={{ backgroundColor: BG_HEADER, borderColor: BORDER_COLOR }}
                 >
-                    <h1 className="text-2xl font-bold text-white">Expr Playground</h1>
+                    {/* === REVISED LOGO & TITLE (Muted Accent) === */}
+                    <div className="flex items-center">
+                        {/* Logo: Stylized Right Arrow for Evaluation/Result */}
+                        <svg className="w-8 h-8 mr-3 transform -rotate-45" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <path d="M4 12C4 12.5523 4.44772 13 5 13H19C19.5523 13 20 12.5523 20 12C20 11.4477 19.5523 11 19 11H5C4.44772 11 4 11.4477 4 12Z" fill={PRIMARY_ACCENT} />
+                            <path d="M16 8L20 12L16 16V8Z" fill={PRIMARY_ACCENT} />
+                        </svg>
+                        <h1 className="text-3xl font-extrabold tracking-tight text-white font-ui drop-shadow-lg">
+                            Expr<span className={`text-[${PRIMARY_ACCENT}]`} style={{ color: PRIMARY_ACCENT, textShadow: `0 0 5px ${PRIMARY_ACCENT}80` }}>CLI</span> Playground
+                        </h1>
+                    </div>
+                    {/* === END REVISED LOGO & TITLE === */}
+
                     <div className="text-sm font-mono flex items-center">
                         <span className="text-gray-400 mr-2">Status:</span>
                         <span className={`h-3 w-3 rounded-full mr-2 ${running ? 'bg-yellow-500 animate-pulse' : 'bg-green-500'}`}></span>
@@ -330,7 +348,7 @@ assert x > 0
                             >
                                 <span>Editor</span>
 
-                                {/* === START: New Slider Input === */}
+                                {/* === Font Slider Input === */}
                                 <div className="ml-6 flex items-center text-sm font-normal text-gray-400">
                                     <label htmlFor="font-slider" className="mr-2 hidden sm:inline">
                                         Font Size:
@@ -339,20 +357,21 @@ assert x > 0
                                         id="font-slider"
                                         type="range"
                                         min="10"
-                                        max="24"
+                                        max="30"
                                         value={editorFontSize}
                                         onChange={(e) => setEditorFontSize(parseInt(e.target.value))}
-                                        className="w-24 h-2 bg-gray-700 rounded-lg appearance-none cursor-pointer range-lg"
+                                        // Custom styling for the slider thumb with muted accent color
+                                        className="w-24 h-2 rounded-lg appearance-none cursor-pointer range-lg bg-gray-700 [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-4 [&::-webkit-slider-thumb]:h-4 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-indigo-400"
                                     />
                                     <span className="ml-2 w-5 text-right font-mono text-gray-300">{editorFontSize}</span>
                                 </div>
-                                {/* === END: New Slider Input === */}
+                                {/* === END: Font Slider Input === */}
 
-                                {/* RUN/STOP BUTTON (UPDATED Shortcut Styling) */}
+                                {/* RUN/STOP BUTTON (UPDATED Color/Styling) */}
                                 {running ? (
                                     <button
                                         onClick={stopCode}
-                                        className={`px-4 py-1 text-sm rounded-md font-medium transition duration-150 ease-in-out shadow-md bg-red-600 hover:bg-red-500 text-white`}
+                                        className={`px-4 py-1 text-sm rounded-md font-medium transition duration-150 ease-in-out shadow-lg bg-red-600 hover:bg-red-500 text-white`}
                                     >
                                         <span className="flex items-center">
                                             <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><path fill="currentColor" d="M14 19H10V5H14V19Z"></path></svg>
@@ -362,7 +381,9 @@ assert x > 0
                                 ) : (
                                     <button
                                         onClick={runCode}
-                                        className={`px-4 py-1 text-sm rounded-md font-medium transition duration-150 ease-in-out shadow-md bg-blue-600 hover:bg-blue-500 text-white`}
+                                        // Use new accent color for button background, and white text
+                                        className={`px-4 py-1 text-sm rounded-md font-medium transition duration-150 ease-in-out shadow-lg text-white hover:opacity-90`}
+                                        style={{ backgroundColor: PRIMARY_ACCENT, boxShadow: `0 0 10px ${PRIMARY_ACCENT}60` }}
                                     >
                                         Run <span className="ml-1 text-xs opacity-75">(Ctrl+S)</span>
                                     </button>
@@ -414,7 +435,7 @@ assert x > 0
                                             <OutputLine
                                                 key={index}
                                                 line={event.content}
-                                                isError={event.type.includes('error') || event.type.includes('client_error')}
+                                                isError={event.type.includes('error') || event.type.includes('client_error') || event.type.includes('warning')}
                                             />
                                         ))}
                                         {/* Dedicated Display for Final Environment */}
@@ -434,7 +455,7 @@ assert x > 0
 
                 {/* Status Bar */}
                 <footer
-                    className={`p-1 text-xs text-gray-500 border-t text-center`}
+                    className={`p-1 text-xs text-gray-500 border-t text-center font-mono`}
                     style={{ backgroundColor: BG_DEEP, borderColor: BORDER_COLOR }}
                 >
                     Expr Playground | Interpreter v1.0
