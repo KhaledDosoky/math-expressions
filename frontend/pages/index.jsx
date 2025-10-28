@@ -26,7 +26,7 @@ const PRIMARY_ACCENT = '#9370DB';
 const OUTPUT_FLASH_COLOR = '#7B68EE';
 
 
-// --- Utility Components (Unchanged) ---
+// --- Utility Components ---
 
 const OutputLine = React.memo(({ line, isError }) => {
     const [isNew, setIsNew] = useState(true);
@@ -79,6 +79,24 @@ const OutputLine = React.memo(({ line, isError }) => {
     );
 });
 OutputLine.displayName = 'OutputLine';
+
+// New Memoized component for the list of output events
+const OutputList = React.memo(({ events }) => {
+    return (
+        <>
+            {events.map((event, index) => (
+                // index key is used here as events are only appended, never reordered or removed mid-list
+                <OutputLine
+                    key={index}
+                    line={event.content}
+                    isError={event.type.includes('error') || event.type.includes('client_error') || event.type.includes('warning')}
+                />
+            ))}
+        </>
+    );
+});
+OutputList.displayName = 'OutputList';
+
 
 const VariableEntryComponent = ({ name, value, isRoot = false, depth = 0 }) => {
     const type = typeof value;
@@ -393,7 +411,7 @@ assert x > 0
                 }
 
                 /* ======================================= */
-                /* MOBILE RESPONSIVENESS STYLES      */
+                /* MOBILE RESPONSIVENESS STYLES      */
                 /* ======================================= */
                 @media (max-width: 768px) {
                     
@@ -401,7 +419,6 @@ assert x > 0
                     .split-pane-wrapper {
                         flex-direction: column !important; /* Forces stacking */
                         gap: 16px; /* Add some space between the two main panels */
-                        /* The height will be controlled by the panels themselves */
                     }
 
                     /* 2. Hide all gutters and remove resizing functionality */
@@ -416,14 +433,8 @@ assert x > 0
                     
                     /* 3. Ensure panels use full width and height is managed by content/flex-grow */
                     .split-pane-wrapper > div {
-                         /* This class is applied to the direct children of Split, 
-                            which are the Editor and the nested Split panel */
                         width: 100% !important; 
                         min-width: 100%;
-                        /* The Editor (first child) should shrink a bit to fit.
-                           The inner split (second child) should take up some space.
-                           We manually set a height here, or rely on content/flex-grow
-                        */
                     }
 
                     /* Make the Editor panel take up a good portion of the screen */
@@ -478,12 +489,11 @@ assert x > 0
                 {/* === END Header === */}
 
                 {/* Main Content using Split (Horizontal) */}
-                {/* Note: The 'split-pane-wrapper' class is targeted by the mobile CSS to force vertical stacking */}
                 <div className="flex-1 p-4 overflow-hidden">
                     <Split
                         className="split-pane-wrapper gap-4"
                         initialSizes={[50, 50]}
-                        minSize={100} // Reduced minimum size for mobile flexibility
+                        minSize={100}
                         gutterSize={10}
                         direction="horizontal" // Default direction (desktop)
                     >
@@ -494,14 +504,16 @@ assert x > 0
                         >
                             {/* Editor Header with Run/Stop Button */}
                             <div
-                                className={`px-4 py-2 border-b text-gray-300 font-semibold flex justify-between items-center`}
+                                // Use 'flex justify-between' and apply gap for mobile
+                                className={`px-4 py-2 border-b text-gray-300 font-semibold flex justify-between items-center gap-2 sm:gap-6`}
                                 style={{ borderColor: BORDER_COLOR }}
                             >
+                                {/* LEFT: Editor Title - Now a standalone flex item */}
                                 <span>Editor</span>
 
-                                {/* Font Slider Input - Hidden on small screens (sm:inline-flex) */}
-                                <div className="ml-6 hidden sm:inline-flex items-center text-sm font-normal text-gray-400">
-                                    <label htmlFor="font-slider" className="mr-2">
+                                {/* MIDDLE: Font Slider - Centered by flex properties of the container */}
+                                <div className="flex items-center text-xs sm:text-sm font-normal text-gray-400">
+                                    <label htmlFor="font-slider" className="mr-1 inline-flex">
                                         Font Size:
                                     </label>
                                     <input
@@ -511,12 +523,13 @@ assert x > 0
                                         max="30"
                                         value={editorFontSize}
                                         onChange={(e) => setEditorFontSize(parseInt(e.target.value))}
-                                        className="w-24 h-2 rounded-lg appearance-none cursor-pointer range-lg bg-gray-700 [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-4 [&::-webkit-slider-thumb]:h-4 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-indigo-400"
+                                        className="w-16 sm:w-24 h-2 rounded-lg appearance-none cursor-pointer range-lg bg-gray-700 [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-3 [&::-webkit-slider-thumb]:h-3 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-indigo-400"
                                     />
-                                    <span className="ml-2 w-5 text-right font-code text-gray-300">{editorFontSize}</span>
+                                    <span className="ml-1 w-5 text-right font-code text-gray-300">{editorFontSize}</span>
                                 </div>
+                                {/* END MIDDLE */}
 
-                                {/* RUN/STOP BUTTON */}
+                                {/* RIGHT: RUN/STOP BUTTON - Now a standalone flex item */}
                                 {running ? (
                                     <button
                                         onClick={stopCode}
@@ -583,15 +596,9 @@ assert x > 0
                                     className={`flex-1 p-4 overflow-y-auto`}
                                     style={{ backgroundColor: BG_DEEP }}
                                 >
-                                    {/* Console Output Events */}
+                                    {/* Console Output Events - Using the new memoized OutputList */}
                                     {outputEvents.length > 0 ? (
-                                        outputEvents.map((event, index) => (
-                                            <OutputLine
-                                                key={index}
-                                                line={event.content}
-                                                isError={event.type.includes('error') || event.type.includes('client_error') || event.type.includes('warning')}
-                                            />
-                                        ))
+                                        <OutputList events={outputEvents} />
                                     ) : (
                                         <span className="text-gray-500 font-code text-sm flex items-center">
                                             {running ? "Connecting to stream..." : "📝 Press 'Run' or Ctrl+S to execute. Results will stream here."}
@@ -612,7 +619,7 @@ assert x > 0
                                     Runtime Variables
                                 </div>
                                 <div className="flex-1 h-full overflow-y-auto" style={{ backgroundColor: BG_DEEP }}>
-                                    {/* EnvironmentDisplay is now memoized */}
+                                    {/* EnvironmentDisplay is memoized */}
                                     <EnvironmentDisplay env={finalEnv || {}} />
                                 </div>
                             </div>
