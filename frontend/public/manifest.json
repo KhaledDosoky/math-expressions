@@ -4,8 +4,8 @@
   "description": "Interactive mathematical expression evaluator",
   "start_url": "/",
   "display": "standalone",
-  "background_color": "#ffffff",
-  "theme_color": "#000000",
+  "background_color": "#252526",
+  "theme_color": "#9370DB",
   "orientation": "portrait-primary",
   "scope": "/",
   "icons": [

@@ -1,4 +1,5 @@
 <svg width="512" height="512" viewBox="0 0 512 512" fill="none" xmlns="http://www.w3.org/2000/svg">
-  <rect width="512" height="512" rx="64" fill="#000000"/>
-  <text x="256" y="300" font-family="Arial, sans-serif" font-size="200" font-weight="bold" text-anchor="middle" fill="white">∑</text>
+  <rect width="512" height="512" rx="64" fill="#252526"/>
+  <rect x="16" y="16" width="480" height="480" rx="48" fill="#343A40" stroke="#9370DB" stroke-width="4"/>
+  <text x="256" y="300" font-family="Arial, sans-serif" font-size="200" font-weight="bold" text-anchor="middle" fill="#9370DB">∑</text>
 </svg>
