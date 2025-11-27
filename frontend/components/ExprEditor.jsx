@@ -9,11 +9,6 @@ export default function ExprEditor({ code, onChange, fontSize }) {
 
     const editorRef = useRef(null);
 
-    // Function to store the editor instance
-    function handleEditorDidMount(editor, monaco) {
-        editorRef.current = editor;
-    }
-
     useEffect(() => {
         if (monaco) registerExprLanguage(monaco);
     }, [monaco]);

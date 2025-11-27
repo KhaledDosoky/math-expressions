@@ -104,7 +104,7 @@ const VariableEntryComponent = ({ name, value, isRoot = false, depth = 0 }) => {
     const isArray = Array.isArray(value);
     const [isExpanded, setIsExpanded] = useState(isRoot && !isArray);
 
-    const formatValue = (val, currentType, isArr) => {
+    const formatValue = useCallback((val, currentType, isArr) => {
         if (isArr) return <span className="text-gray-400">[{val.length} items]</span>;
         if (val === null) return <span className="text-gray-500 font-bold">null</span>;
 
@@ -123,7 +123,7 @@ const VariableEntryComponent = ({ name, value, isRoot = false, depth = 0 }) => {
             default:
                 return <span className="text-gray-300">{String(val)}</span>;
         }
-    };
+    }, [isArray]);
 
     const toggleExpand = useCallback((e) => {
         e.stopPropagation();
@@ -170,7 +170,7 @@ const VariableEntryComponent = ({ name, value, isRoot = false, depth = 0 }) => {
                 })}
             </div>
         );
-    }, [isExpanded, value, isArray, depth]);
+    }, [isExpanded, value, isArray, depth, formatValue]);
 
 
     return (
@@ -251,6 +251,11 @@ assert x > 0
     const outputRef = useRef(null);
     const eventSourceRef = useRef(null);
 
+    const triggerFlash = useCallback(() => {
+        setFlashOutput(true);
+        setTimeout(() => setFlashOutput(false), 200);
+    }, []);
+
     const clearOutput = useCallback(() => {
         setOutputEvents([]);
         setFinalEnv(null);
@@ -277,12 +282,20 @@ assert x > 0
                     setRunning(false);
                     eventSourceRef.current = null;
                 } else {
-                    setOutputEvents((prev) => [...prev, event]);
+                    setOutputEvents((prev) => {
+                        const newEvents = [...prev, event];
+                        triggerFlash();
+                        return newEvents;
+                    });
                 }
 
             } catch (error) {
                 console.error("Failed to parse event data:", rawData, error);
-                setOutputEvents((prev) => [...prev, { type: 'client_error', content: `[Client Error] Failed to read stream data on final event.` }]);
+                setOutputEvents((prev) => {
+                    const newEvents = [...prev, { type: 'client_error', content: `[Client Error] Failed to read stream data on final event.` }];
+                    triggerFlash();
+                    return newEvents;
+                });
             }
         };
 
@@ -320,23 +333,17 @@ assert x > 0
             eventSourceRef.current = null;
         }
         setRunning(false);
-        setOutputEvents(prev => [...prev, { type: 'client_warning', content: 'Execution manually stopped.' }]);
+        setOutputEvents(prev => {
+            const newEvents = [...prev, { type: 'client_warning', content: 'Execution manually stopped.' }];
+            triggerFlash();
+            return newEvents;
+        });
     }, []);
 
 
     useEffect(() => {
         if (outputRef.current) {
             outputRef.current.scrollTop = outputRef.current.scrollHeight;
-        }
-
-        if (outputEvents.length > 0) {
-            setFlashOutput(true);
-
-            const timer = setTimeout(() => {
-                setFlashOutput(false);
-            }, 200);
-
-            return () => clearTimeout(timer);
         }
     }, [outputEvents]);
 
